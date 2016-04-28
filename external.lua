@@ -1,19 +1,16 @@
+-- other requirements are required in main.lua
 -- exotics
 require 'loadcaffe'
 -- local imports
-local utils = require 'misc.utils'
-require 'misc.DataLoader'
-require 'misc.DataLoaderRaw'
-require 'misc.LanguageModel'
 require 'cutorch'
---require 'cudnn'
-
+require 'misc.LanguageModel'
 
 local net_utils = require 'misc.net_utils'
 local ntalk = {}
 
-function ntalk.getProtos(gpu_id) -- default  -1
-	local model =  'model/d1-501-1448236541.t7_cpu.t7' -- could replace with input
+
+-- Returns the neuraltalk2 protos given model path and gpuid
+function ntalk.getProtos(model, gpuid) -- default  -1
 	local seed = 123
 	local checkpoint = torch.load(model)
 	-- Load the networks from model checkpoint 
@@ -25,8 +22,9 @@ function ntalk.getProtos(gpu_id) -- default  -1
 	return protos
 end
 
-function ntalk.getLoss(protos, images, captions)
-	
+-- Returns the loss between the predicted caption based on the
+-- image and the real caption given in labels
+function ntalk.getLoss(protos, images, labels)
 	protos.cnn:evaluate()
 	protos.lm:evaluate()
 	loader:resetIterator(split)
@@ -35,7 +33,6 @@ function ntalk.getLoss(protos, images, captions)
 	local expanded_feats = protos.expander:forward(feats)
 	local logprobs = protos.lm:forward{expanded_feats, labels}
 	return protos.crit:forward(logprobs, labels) -- return loss
-	
 end
 
 return ntalk
