@@ -25,13 +25,24 @@ end
 -- Returns the loss between the predicted caption based on the
 -- image and the real caption given in labels
 function ntalk.getLoss(protos, images, labels)
+	local batch_size = 32
 	protos.cnn:evaluate()
 	protos.lm:evaluate()
-	loader:resetIterator(split)
-	images = net_utils.prepro(images, false, opt.gpuid >= 0)
-	local feats = protos.cnn:forward(images)
+	local images_new = torch.ByteTensor(batch_size, 3, 256, 256)
+	for i = 1,batch_size do
+		local im = images[i]
+		local yByte = torch.ByteTensor(im:size()):copy(im)
+		local im2 = image.scale(yByte, 256, 256)
+		images_new[i] = im2 
+	end
+	
+	images_new = net_utils.prepro(images_new, false, true)
+	freeMemory, totalMemory = cutorch.getMemoryUsage(1)
+	local feats = protos.cnn:forward(images_new)
 	local expanded_feats = protos.expander:forward(feats)
-	local logprobs = protos.lm:forward{expanded_feats, labels}
+	print(expanded_feats)
+	print(labels)
+	local logprobs = protos.lm:forward({expanded_feats, labels})
 	return protos.crit:forward(logprobs, labels) -- return loss
 end
 

@@ -114,6 +114,7 @@ local function eval_split(split, evalopt)
 
     -- fetch a batch of data
     local data = loader:getBatch{batch_size = opt.batch_size, split = split, seq_per_img = opt.seq_per_img}
+    print(data.images:size())
     data.images = net_utils.prepro(data.images, false, opt.gpuid >= 0) -- preprocess in place, and don't augment
     n = n + data.images:size(1)
 
