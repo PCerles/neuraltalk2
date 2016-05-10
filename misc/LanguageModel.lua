@@ -292,7 +292,6 @@ function layer:updateOutput(input)
   local imgs = input[1]
   local seq = input[2]
   if self.clones == nil then self:createClones() end -- lazily create clones on first forward pass
-
   assert(seq:size(1) == self.seq_length)
   local batch_size = seq:size(2)
   self.output:resize(self.seq_length+2, batch_size, self.vocab_size+1)
@@ -340,6 +339,7 @@ function layer:updateOutput(input)
 
     if not can_skip then
       -- construct the inputs
+      --print(self.state)
       self.inputs[t] = {xt,unpack(self.state[t-1])}
       -- forward the network
       local out = self.clones[t]:forward(self.inputs[t])

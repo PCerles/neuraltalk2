@@ -38,11 +38,12 @@ def prepro_captions(imgs):
   # preprocess all the captions
   print 'example processed tokens:'
   for i,img in enumerate(imgs):
-    img['processed_tokens'] = []
-    for j,s in enumerate(img['captions']):
-      txt = str(s).lower().translate(None, string.punctuation).strip().split()
-      img['processed_tokens'].append(txt)
-      if i < 10 and j == 0: print txt
+	print(img)
+	img['processed_tokens'] = []
+	for j,s in enumerate(img['captions']):
+	    txt = str(s).lower().translate(None, string.punctuation).strip().split()
+     	img['processed_tokens'].append(txt)
+     	if i < 10 and j == 0: print txt
 
 def build_vocab(imgs, params):
   count_thr = params['word_count_threshold']
@@ -155,9 +156,7 @@ def encode_captions(imgs, params, wtoi):
 def main(params):
 
   imgs = json.load(open(params['input_json'], 'r'))
-  seed(123) # make reproducible
-  shuffle(imgs) # shuffle the order
-
+  print(imgs)
   # tokenization and preprocessing
   prepro_captions(imgs)
 
@@ -165,73 +164,33 @@ def main(params):
   vocab = build_vocab(imgs, params)
   itow = {i+1:w for i,w in enumerate(vocab)} # a 1-indexed vocab translation table
   wtoi = {w:i+1 for i,w in enumerate(vocab)} # inverse table
-
-  # assign the splits
-  assign_splits(imgs, params)
   
   # encode captions in large arrays, ready to ship to hdf5 file
   L, label_start_ix, label_end_ix, label_length = encode_captions(imgs, params, wtoi)
+  out = {}
+  out['w_to_i'] = wtoi
 
-  # create output h5 file
+  json.dump(out, open('output.json', 'w')) # create output h5 file
   N = len(imgs)
   f = h5py.File(params['output_h5'], "w")
   f.create_dataset("labels", dtype='uint32', data=L)
   f.create_dataset("label_start_ix", dtype='uint32', data=label_start_ix)
   f.create_dataset("label_end_ix", dtype='uint32', data=label_end_ix)
   f.create_dataset("label_length", dtype='uint32', data=label_length)
-  dset = f.create_dataset("images", (N,3,256,256), dtype='uint8') # space for resized images
-  for i,img in enumerate(imgs):
-    # load the image
-    I = imread(os.path.join(params['images_root'], img['file_path']))
-    try:
-        Ir = imresize(I, (256,256))
-    except:
-        print 'failed resizing image %s - see http://git.io/vBIE0' % (img['file_path'],)
-        raise
-    # handle grayscale input images
-    if len(Ir.shape) == 2:
-      Ir = Ir[:,:,np.newaxis]
-      Ir = np.concatenate((Ir,Ir,Ir), axis=2)
-    # and swap order of axes from (256,256,3) to (3,256,256)
-    Ir = Ir.transpose(2,0,1)
-    # write to h5
-    dset[i] = Ir
-    if i % 1000 == 0:
-      print 'processing %d/%d (%.2f%% done)' % (i, N, i*100.0/N)
   f.close()
   print 'wrote ', params['output_h5']
-
-  # create output json file
-  out = {}
-  out['ix_to_word'] = itow # encode the (1-indexed) vocab
-  out['images'] = []
-  for i,img in enumerate(imgs):
-    
-    jimg = {}
-    jimg['split'] = img['split']
-    if 'file_path' in img: jimg['file_path'] = img['file_path'] # copy it over, might need
-    if 'id' in img: jimg['id'] = img['id'] # copy over & mantain an id, if present (e.g. coco ids, useful)
-    
-    out['images'].append(jimg)
-  
-  json.dump(out, open(params['output_json'], 'w'))
-  print 'wrote ', params['output_json']
-
 if __name__ == "__main__":
 
   parser = argparse.ArgumentParser()
 
   # input json
   parser.add_argument('--input_json', required=True, help='input json file to process into hdf5')
-  parser.add_argument('--num_val', required=True, type=int, help='number of images to assign to validation data (for CV etc)')
   parser.add_argument('--output_json', default='data.json', help='output json file')
   parser.add_argument('--output_h5', default='data.h5', help='output h5 file')
   
   # options
   parser.add_argument('--max_length', default=16, type=int, help='max length of a caption, in number of words. captions longer than this get clipped.')
-  parser.add_argument('--images_root', default='', help='root location in which images are stored, to be prepended to file_path in input json')
   parser.add_argument('--word_count_threshold', default=5, type=int, help='only words that occur more than this number of times will be put in vocab')
-  parser.add_argument('--num_test', default=0, type=int, help='number of test images (to withold until very very end)')
 
   args = parser.parse_args()
   params = vars(args) # convert to ordinary dict

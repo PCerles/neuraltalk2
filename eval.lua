@@ -22,7 +22,7 @@ cmd:text('Options')
 -- Input paths
 cmd:option('-model','','path to model to evaluate')
 -- Basic options
-cmd:option('-batch_size', 1, 'if > 0 then overrule, otherwise load from checkpoint.')
+cmd:option('-batch_size', 32, 'if > 0 then overrule, otherwise load from checkpoint.')
 cmd:option('-num_images', 100, 'how many images to use when periodically evaluating the loss? (-1 = all)')
 cmd:option('-language_eval', 0, 'Evaluate language as well (1 = yes, 0 = no)? BLEU/CIDEr/METEOR/ROUGE_L? requires coco-caption code from Github.')
 cmd:option('-dump_images', 1, 'Dump images into vis/imgs folder for vis? (1=yes,0=no)')
@@ -121,6 +121,8 @@ local function eval_split(split, evalopt)
     -- forward the model to get loss
     local feats = protos.cnn:forward(data.images)
 
+    local expanded_feats = protos.expander:forward(feats)
+    print(expanded_feats:size())
     -- evaluate loss if we have the labels
     local loss = 0
     if data.labels then
